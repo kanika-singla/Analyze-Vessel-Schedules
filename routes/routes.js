@@ -40,8 +40,8 @@ module.exports = function(app) {
         response.send(mostArrivalsPorts);
     });
 
-    app.get("/leastArrivalsPort", async function(request, response) {
-        let leastArrivalsPorts = await vesselController.getLeastArrivals();
-        response.send(leastArrivalsPorts);
+    app.get("/leastPortCalls", async function(request, response) {
+        let leastPortCalls = await vesselController.getLeastPortCalls();
+        response.send(leastPortCalls);
     });
 }

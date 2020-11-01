@@ -26,21 +26,25 @@ class VesselController {
     }
 
     async getMostArrivals() {
-        if(portData.length==0) {
-            portData = await this.populatePortData();
-        }
+        portData = await this.populatePortData;
+        
+        portData.sort(function(a, b) {
+            return b.arrivals - a.arrivals;
+        });
         return portData.slice(0,5);
     }
 
-    async getLeastArrivals() {
-        if(portData.length==0) {
-            portData = await this.populatePortData();
-        }
-        // TODO: handle in case portdata contains less than 5 elements
-        return portData.slice(portData.length-5,portData.length);
+    async getLeastPortCalls() {
+        await this.populatePortData();
+        
+        portData.sort(function(a, b) {
+            return a.portCalls - b.portCalls;
+        });
+        return portData.slice(0,5);
     }
 
     async populatePortData() {
+        if(portData.length !=0 ) { return portData }
         console.log("populating data");
         var vessels = await this.readVesselApi();
         if(vessels.length==0) {
@@ -55,17 +59,23 @@ class VesselController {
         schedules.forEach( (schedule) => {
             if(schedule != undefined && schedule.hasOwnProperty("portCalls")) {
                 schedule.portCalls.forEach(portCall => {
-                    if(!portCall.isOmitted) {
-                        let portIndex = portData.findIndex(port => port["id"] === portCall.port.id);
-                        if(portIndex != -1) {
+                    let portIndex = portData.findIndex(port => port["id"] === portCall.port.id);
+                    if(portIndex != -1) {
+                        if(!portCall.isOmitted) {
                             portData[portIndex]["arrivals"]++;
-                        } else {
-                            portData.push({
-                                id: portCall.port.id,
-                                arrivals: 1,
-                                name: portCall.port.name
-                            });
                         }
+                        portData[portIndex]["portCalls"]++;
+                    } else {
+                        let portDetails = {
+                            id: portCall.port.id,
+                            name: portCall.port.name,
+                            portCalls: 1,
+                            arrivals: 0
+                        };
+                        if(!portCall.isOmitted) {
+                            portDetails["arrivals"] = 1;
+                        }
+                        portData.push(portDetails);
                     }
                 });
             }
