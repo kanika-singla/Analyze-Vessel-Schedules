@@ -27,7 +27,7 @@ class VesselController {
 
     async getMostArrivals() {
         portData = await this.populatePortData;
-        
+
         portData.sort(function(a, b) {
             return b.arrivals - a.arrivals;
         });
@@ -60,17 +60,20 @@ class VesselController {
             if(schedule != undefined && schedule.hasOwnProperty("portCalls")) {
                 schedule.portCalls.forEach(portCall => {
                     let portIndex = portData.findIndex(port => port["id"] === portCall.port.id);
+                    let duration = this.getPortCallDuration(portCall.departure, portCall.arrival);
                     if(portIndex != -1) {
                         if(!portCall.isOmitted) {
                             portData[portIndex]["arrivals"]++;
                         }
                         portData[portIndex]["portCalls"]++;
+                        portData[portIndex]["portCallDuration"].push(duration);
                     } else {
                         let portDetails = {
                             id: portCall.port.id,
                             name: portCall.port.name,
                             portCalls: 1,
-                            arrivals: 0
+                            arrivals: 0,
+                            portCallDuration: [duration]
                         };
                         if(!portCall.isOmitted) {
                             portDetails["arrivals"] = 1;
@@ -80,7 +83,16 @@ class VesselController {
                 });
             }
         });
+        console.log("populate data done");
         return portData;
+    }
+
+    getPortCallDuration(departure, arrival) {
+        if(arrival != null && departure != null) {
+            let duration = ((new Date(departure)).getTime() - (new Date(arrival)).getTime())/ (60*1000);
+            return duration //in minutes
+        }
+        return 0;
     }
 
 }
