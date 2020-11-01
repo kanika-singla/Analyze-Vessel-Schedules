@@ -5,6 +5,7 @@ class VesselController {
         availableVessels: process.env.vesselsAPI,
         schedule: process.env.scheduleAPI
     };
+
     async readVesselApi() {
         let vessels = await axios.get(this.#apiCalls.availableVessels);
         if(vessels !== undefined && vessels.hasOwnProperty("data")) {
@@ -12,6 +13,13 @@ class VesselController {
         }
         return []
         ;
+    }
+    async getSchedule(portIMO) {
+        let schedule =  await axios.get(this.#apiCalls.schedule+portIMO);
+        if(schedule !== undefined && schedule.hasOwnProperty("data")) {
+             return schedule.data
+         }
+         return [];
     }
 }
 

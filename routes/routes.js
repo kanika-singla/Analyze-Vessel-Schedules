@@ -14,5 +14,19 @@ module.exports = function(app) {
             response.send(res.data);
         }
     });
-    
+
+    app.get("/getSchedule/:portIMO", async function (request, response) {
+        if(request.params.hasOwnProperty("portIMO") && request.params.portIMO !== undefined) {
+            try {
+                const res = await vesselController.getSchedule(request.params.portIMO);
+                if(res !== undefined && res.hasOwnProperty("data")) {
+                    response.send(res.data);
+                }
+            } catch (error) {
+                response.send("Could not find schedule for port: "+ request.params.portIMO);
+            }
+        } else {
+            response.send("Please input portIMO");
+        }
+    });
 }
