@@ -25,9 +25,28 @@ class VesselController {
          return [];
     }
 
+    async getMostArrivals() {
+        if(portData.length==0) {
+            portData = await this.populatePortData();
+        }
+        return portData.slice(0,5);
+    }
+
+    async getLeastArrivals() {
+        if(portData.length==0) {
+            portData = await this.populatePortData();
+        }
+        // TODO: handle in case portdata contains less than 5 elements
+        return portData.slice(portData.length-5,portData.length);
+    }
+
     async populatePortData() {
         console.log("populating data");
         var vessels = await this.readVesselApi();
+        if(vessels.length==0) {
+            console.log("No vessels found");
+            return [];
+        }
         let promiseArr=[];
         vessels.forEach( (vessel) => {
             promiseArr.push(this.getSchedule(vessel.imo));

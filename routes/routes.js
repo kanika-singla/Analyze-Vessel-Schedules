@@ -34,4 +34,14 @@ module.exports = function(app) {
         let portData = await vesselController.populatePortData();
         response.send(portData);
     });
+
+    app.get("/mostArrivalsPort", async function(request, response) {
+        let mostArrivalsPorts = await vesselController.getMostArrivals();
+        response.send(mostArrivalsPorts);
+    });
+
+    app.get("/leastArrivalsPort", async function(request, response) {
+        let leastArrivalsPorts = await vesselController.getLeastArrivals();
+        response.send(leastArrivalsPorts);
+    });
 }
