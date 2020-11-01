@@ -29,4 +29,9 @@ module.exports = function(app) {
             response.send("Please input portIMO");
         }
     });
+
+    app.get("/populatePortData", async function(request, response) {
+        let portData = await vesselController.populatePortData();
+        response.send(portData);
+    });
 }
