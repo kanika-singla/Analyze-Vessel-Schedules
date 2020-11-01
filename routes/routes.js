@@ -44,4 +44,15 @@ module.exports = function(app) {
         let leastPortCalls = await vesselController.getLeastPortCalls();
         response.send(leastPortCalls);
     });
+
+    app.get("/portPercentiles", async function(request, response) {
+        let portPercentiles = await vesselController.getPercentilePortCallDuration();
+        response.send(portPercentiles);
+    });
+
+    app.get("/vesselPercentiles", async function(request, response) {
+        let vesselPercentiles = await vesselController.getVesselPercentiles();
+        response.send(vesselPercentiles);
+    });
+
 }
