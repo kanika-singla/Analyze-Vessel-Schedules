@@ -36,6 +36,7 @@ class PortCallService {
             "7": 7*24*60,
             "14": 14*24*60
         }; // in minutes
+
         logs.forEach( (log) => {
             if(log.updatedField == "arrival" && log.arrival != null) {
                 let createdTime = (new Date(log.createdDate)).getTime();
@@ -51,6 +52,7 @@ class PortCallService {
                 }
             }
         });
+
         if(vesselDelaysObj["2dayDelay"] == null) {
             if(vesselDelaysObj["7dayDelay"] == null) {
                 if(vesselDelaysObj["14dayDelay"] == null) {
@@ -62,9 +64,11 @@ class PortCallService {
                 vesselDelaysObj["2dayDelay"] = vesselDelaysObj["7dayDelay"];
             }
         }
+
         if(vesselDelaysObj["7dayDelay"] == null && vesselDelaysObj["14dayDelay"] != null) {
             vesselDelaysObj["7dayDelay"] = vesselDelaysObj["14dayDelay"];
         }
+
         if(vesselDelaysObj["14dayDelay"] == null) {
             vesselDelaysObj["14dayDelay"] = 0;
         }
@@ -103,10 +107,12 @@ class PortCallService {
             console.log("No vessels found");
             return [];
         }
+
         let promiseArr=[];
         vessels.forEach( (vessel) => {
             promiseArr.push(vesselAPIServiceObj.getSchedule(vessel.imo));
-        })
+        });
+
         const schedules = await Promise.all(promiseArr);
         schedules.forEach( (schedule) => {
             if(schedule != undefined && schedule.hasOwnProperty("portCalls")) {
