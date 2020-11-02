@@ -34,9 +34,7 @@ class VesselAPIService {
     */
     async getSchedule(portIMO) {
         try {
-            console.time("Time to Read Schedule API");
             let schedule =  await axios.get(this.apiCalls.schedule+portIMO);
-            console.timeEnd("Time to Read Schedule API");
             if(schedule !== undefined && schedule.hasOwnProperty("data")) {
                 return schedule.data
             }

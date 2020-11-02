@@ -96,7 +96,7 @@ class PortCallService {
      * It should be called only once to save to-and-fro API calls
      */
     async populatePortData(portData) {
-        if(portData.length !=0 ) { return portData }
+        if(portData !== undefined && portData.length !=0 ) { return portData }
         console.time("Time to populate Port Data");
         var vessels = await vesselAPIServiceObj.readVesselApi();
         if(vessels.length==0) {
@@ -111,22 +111,29 @@ class PortCallService {
         schedules.forEach( (schedule) => {
             if(schedule != undefined && schedule.hasOwnProperty("portCalls")) {
                 schedule.portCalls.forEach( (portCall) => {
-                    if(!portCall.isOmitted) {
-                        let portIndex = portData.findIndex(port => port["id"] === portCall.port.id);
-                        let duration = this.getPortCallDuration(portCall.departure, portCall.arrival);
-                        //For step 4: calculate vessel port call delay
-                        let portCallDelay = this.getPortCallDelay(schedule.vessel.imo, portCall.arrival, portCall.logEntries);
-                        if(portIndex != -1) {
+                    let portIndex = (portData!== undefined && portData.length > 0) ? portData.findIndex(port => port["id"] === portCall.port.id): -1;
+                    let duration = this.getPortCallDuration(portCall.departure, portCall.arrival);
+                    //For step 4: calculate vessel port call delay
+                    let portCallDelay = this.getPortCallDelay(schedule.vessel.imo, portCall.arrival, portCall.logEntries);
+                    if(portIndex != -1) {
+                        if(!portCall.isOmitted) {
                             portData[portIndex]["arrivals"]++;
-                            portData[portIndex]["portCallDuration (hours)"].push(duration);
-                        } else {
-                            let portDetails = {
-                                id: portCall.port.id,
-                                name: portCall.port.name,
-                                arrivals: 1,
-                                "portCallDuration (hours)": [duration]
-                            };
+                        }
+                        portData[portIndex]["portCallDuration (hours)"].push(duration);
+                    } else {
+                        let portDetails = {
+                            id: portCall.port.id,
+                            name: portCall.port.name,
+                            arrivals: 0,
+                            "portCallDuration (hours)": [duration]
+                        };
+                        if(!portCall.isOmitted) {
+                            portDetails["arrivals"] = 1;
+                        }
+                        if(portData!== undefined && portData.length > 0) {
                             portData.push(portDetails);
+                        } else {
+                            portData = [portDetails];
                         }
                     }
                 });
