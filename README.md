@@ -2,8 +2,16 @@
 
 This is a tool to import vessel schedules from an external data source and display interesting statistics about these schedules.
 
+### Technologies Used:
+* Javascript, NodeJS (Runtime environment)
+* Express framework
+* NodeJS libraries:
+  * axios
+  * percentiles
+  * dotenv
+
 ### Pre-requisites
-* NodeJS, npm installed
+* NodeJS installed (^12.18.3)
 * Basic understanding of running npm/node commands.
 
 ### Setup:
