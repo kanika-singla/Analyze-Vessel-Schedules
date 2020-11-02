@@ -1,180 +1,97 @@
-const axios = require("axios");
 const percentile = require("percentile");
+const portCallService = require("../services/PortCallService");
+const portCallServiceObj = new portCallService();
 
 let portData = [];
-let vesselPortCallDelays = [];
+let vesselPortCallDelayPercentiles=[];
+let vesselPortCallDelays=[];
 
+/** A vessel controller containing business logic for calculating statistics based on vessels data provided
+ *  Assuming we are only considering actual arrivals (stops/portCalls) i.e isOmitted flag is false
+*/
 class VesselController {
-    #apiCalls = {
-        availableVessels: process.env.vesselsAPI,
-        schedule: process.env.scheduleAPI
-    };
 
-    async readVesselApi() {
-        try {
-            console.time("Time to Read Vessels API");
-            let vessels = await axios.get(this.#apiCalls.availableVessels);
-            console.timeEnd("Time to Read Vessels API");
-            if(vessels !== undefined && vessels.hasOwnProperty("data")) {
-                return vessels.data
-            }
-            return [];
-        } catch(error) {
-            console.error("Error while reading vessels: "+ error);
-            console.error("Try adding api urls in .env file.");
-        }
-    }
-
-    async getSchedule(portIMO) {
-        try {
-            console.time("Time to Read Schedule API");
-            let schedule =  await axios.get(this.#apiCalls.schedule+portIMO);
-            console.timeEnd("Time to Read Schedule API");
-            if(schedule !== undefined && schedule.hasOwnProperty("data")) {
-                return schedule.data
-            }
-            return [];
-        } catch(error) {
-            console.error("Error while reading schedule for vessels: "+ error);
-            console.error("Try adding api urls in .env file.");
-        }
-    }
-
+    /**
+     * The top 5 ports with the most arrivals, and the corresponding number of total port calls for each port.
+     * 1. Populate Port Data
+     * 2. Sort port array based on *arrivals* DESC
+     * 3. Limit to Top 5
+     * @returns {array} array of 5 objects containing ports with most arrivals
+     */
     async getMostArrivals() {
         //TODO: optimization for fields to be returned
         console.time("Time to get Most Arrivals");
-        await this.populatePortData();
+        portData = await portCallServiceObj.populatePortData(portData);
         
         portData.sort(function(a, b) {
-            return a.portCalls - b.portCalls;
+            return b.arrivals - a.arrivals;
         });
         console.timeEnd("Time to get Most Arrivals");
         return portData.slice(0,5);
     }
 
+    /**
+     * The top 5 ports that have the fewest port calls, and the number of total port calls for each port.
+     * 1. Populate Port Data
+     * 2. Sort port array based on *arrivals* ASC
+     * 3. Limit to Top 5
+     * @returns {array} array of 5 objects containing ports with least portCalls
+     */
     async getLeastPortCalls() {
         console.time("Time to get Least PortCalls");
-        await this.populatePortData();
+        portData = await portCallServiceObj.populatePortData(portData);
         
         portData.sort(function(a, b) {
-            return a.portCalls - b.portCalls;
+            return a.arrivals - b.arrivals;
         });
         console.timeEnd("Time to get Least PortCalls");
         return portData.slice(0,5);
     }
 
+    /**
+     * For each port, the percentiles of port call durations: 5th, 20th, 50th, 75th and 90th percentiles.
+     * 1. Populate Port Data
+     * 2. Calculate percentiles (5,20,50,75,90) on port call duration (taken in hours)
+     * @returns {array} array of objects(69 ports) containing name and percentiles of port call duration
+     */
     async getPercentilePortCallDuration() {
         console.time("Time to get Percentle port call duration for each Port");
-        await this.populatePortData();
+        portData = await portCallServiceObj.populatePortData(portData);
+        // calculating percentiles for 5th percentile, 20th percentile and so on...
         let percentiles = [5, 20, 50, 75, 90];
         let portPercentiles = [];
         for(let i=0; i<portData.length;i++) {
             let port = {
                 name: portData[i]["name"]
             };
-            port["percentiles"] = percentile(percentiles, portData[i]["portCallDuration"]);
+            port["percentiles (5p, 20p, 50p, 75p, 90p) (hours)"] = percentile(percentiles, portData[i]["portCallDuration (hours)"]);
             portPercentiles.push(port);
         }
         console.timeEnd("Time to get Percentle port call duration for each Port");
         return portPercentiles;
     }
 
-    async populatePortData() {
-        if(portData.length !=0 ) { return portData }
-        console.time("Time to populate Port Data");
-        var vessels = await this.readVesselApi();
-        if(vessels.length==0) {
-            console.log("No vessels found");
-            return [];
-        }
-        let promiseArr=[];
-        vessels.forEach( (vessel) => {
-            promiseArr.push(this.getSchedule(vessel.imo));
-        })
-        const schedules = await Promise.all(promiseArr);
-        schedules.forEach( (schedule) => {
-            if(schedule != undefined && schedule.hasOwnProperty("portCalls")) {
-                schedule.portCalls.forEach( (portCall) => {
-                    let portIndex = portData.findIndex(port => port["id"] === portCall.port.id);
-                    let duration = this.getPortCallDuration(portCall.departure, portCall.arrival);
-                    //For step 4: calculate vessel port call delay
-                    let portCallDelay = this.getPortCallDelay(schedule.vessel.imo, portCall.port.id, portCall.arrival, portCall.logEntries);
-                    if(portIndex != -1) {
-                        if(!portCall.isOmitted) {
-                            portData[portIndex]["arrivals"]++;
-                        }
-                        portData[portIndex]["portCalls"]++;
-                        portData[portIndex]["portCallDuration"].push(duration);
-                    } else {
-                        let portDetails = {
-                            id: portCall.port.id,
-                            name: portCall.port.name,
-                            portCalls: 1,
-                            arrivals: 0,
-                            portCallDuration: [duration]
-                        };
-                        if(!portCall.isOmitted) {
-                            portDetails["arrivals"] = 1;
-                        }
-                        portData.push(portDetails);
-                    }
-                });
-            }
-        });
-        console.timeEnd("Time to populate Port Data");
-        return portData;
-    }
-
-    getPortCallDuration(departure, arrival) {
-        if(arrival != null && departure != null) {
-            let duration = ((new Date(departure)).getTime() - (new Date(arrival)).getTime())/ (60*60*1000);
-            return duration.toFixed(2); //in hours
-        }
-        return 0;
-    }
-
+    /**
+     * For each vessel, calculate the 5th, 50th and 80th percentiles for the port call delay when the vessel is 14, 7 and 2 days from arrival.
+     * @returns {array} array of 12 objects(vessels) with vesselId, portDelays- 2 day delays, 7 day delays, 14 day delays
+     */
     async getVesselPercentiles() {
-        await this.populatePortData();
-        return vesselPortCallDelays;
-    }
-
-    getPortCallDelay(vesselId, portId, arrival, logs) {
-        let vesselDelays = {};
-        let arrivalTime = (new Date(arrival)).getTime();
-
-        let dayDelays = {
-            "2": 2*24*60,
-            "7": 7*24*60,
-            "14": 14*24*60
-        }; // in minutes
-        logs.forEach( (log) => {
-            if(log.updatedField == "arrival" && log.arrival != null) {
-                let createdTime = (new Date(log.createdDate)).getTime();
-                if( (arrivalTime - createdTime)/(60*1000) > dayDelays["2"] && (arrivalTime - createdTime)/(60*1000) < dayDelays["7"] ) {
-                    vesselDelays["2dayDelay"] = (new Date(arrival)).getHours() - (new Date(log.arrival)).getHours();
+        // percentile for day delays - 5th percentile, 50th percentile and so on...
+        let percentiles = [5, 50, 80];
+        portData = await portCallServiceObj.populatePortData(portData);
+        let vesselPortCallDelays = portCallServiceObj.getVesselPortCallDelaysData();
+        vesselPortCallDelays.forEach( vessel => {
+            vesselPortCallDelayPercentiles.push({
+                vesselId: vessel.id,
+                percentileDelay: {
+                    "2DaysDelay": percentile(percentiles, vessel["portDelays"]["2"]),
+                    "7DaysDelay": percentile(percentiles, vessel["portDelays"]["7"]),
+                    "14DaysDelay": percentile(percentiles, vessel["portDelays"]["14"])
                 }
-            }
+            })
         });
-
-        let vesselIndex = vesselPortCallDelays.findIndex(vessel => vessel["id"] === vesselId);
-        let vesselData;
-        if(vesselIndex == -1) {
-            vesselData = {
-                id: vesselId,
-                port: [{
-                    id: portId,
-                    portDelays: [vesselDelays]
-                }]
-            };
-            vesselPortCallDelays.push(vesselData);
-        } else {
-            vesselPortCallDelays[vesselIndex]["port"].push({
-                id: portId,
-                portDelays: [vesselDelays]
-            });
-        }
+        return vesselPortCallDelayPercentiles;
     }
-
 }
 
 module.exports = VesselController;
